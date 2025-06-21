@@ -2,6 +2,16 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+export const sendTwoFactorTokenEmail = async (email: string, token: string) => {
+  await resend.emails.send({
+    from: "onbording@resend.dev",
+    to: email,
+    subject: "Two-Factor Authentication Code",
+    html: `<p>Your two-factor authentication code is: <strong>${token}</strong></p>
+           <p>This code will expire shortly. Do not share this code with anyone.</p>`,
+  });
+};
+
 export const sendPasswordResetEmail = async (email: string, token: string) => {
   const resetLink = `http://localhost:3000/auth/new-password?token=${token}`;
 
@@ -19,7 +29,7 @@ export const sendVerificationEmail = async (email: string, token: string) => {
   await resend.emails.send({
     from: "onbording@resend.dev",
     to: email,
-    subject: "Comfirm your email",
+    subject: "Confirm your email",
     html: `<p>Click <a href="${confirmLink}">here</a> to confirm email.</p>`,
   });
 };
