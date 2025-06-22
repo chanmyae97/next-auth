@@ -25,7 +25,7 @@ model User {
   role          UserRole @default(USER)
   accounts      Account[]
   isTwoFactorEnabled Boolean @default(false)
-  twoFactorConifirmation TwoFactorConfirmation?
+  twoFactorConfirmation TwoFactorConfirmation?
  
   @@map("users")
 }
