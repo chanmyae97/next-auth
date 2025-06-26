@@ -8,10 +8,15 @@ import { getTwoFactorConfirmationByUserId } from "./data/two-factor-confirmation
 
 import { db } from "./lib/db";
 import { getAccountByUserId } from "./data/account";
-export const { auth, handlers, signIn, signOut } = NextAuth({
+export const {
+  auth,
+  handlers: { GET, POST },
+  signIn,
+  signOut,
+  unstable_update,
+} = NextAuth({
   pages: {
     signIn: "/auth/login",
-    signOut: "/auth/login",
     error: "/auth/error",
   },
   events: {
@@ -29,8 +34,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       if (!user.id) return false;
       const existingUser = await getUserById(user.id);
 
-      // Prevent sing in without email verification
-
+      // Prevent sign in without email verification
       if (!existingUser?.emailVerified) return false;
 
       if (existingUser.isTwoFactorEnabled) {
@@ -40,7 +44,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
         if (!twoFactorConfirmation) return false;
 
-        //Delete two factor confirmation for next sign in
+        // Delete two factor confirmation for next sign in
         await db.twoFactorConfirmation.delete({
           where: { id: twoFactorConfirmation.id },
         });
@@ -81,7 +85,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
       const existingAccount = await getAccountByUserId(existingUser.id);
 
-      token.isOauth = !!existingAccount;
+      token.isOAuth = !!existingAccount;
       token.name = existingUser.name;
       token.email = existingUser.email;
       token.role = existingUser.role;

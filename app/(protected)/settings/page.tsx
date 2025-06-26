@@ -51,6 +51,7 @@ const SettingsPage = () => {
       password: undefined,
       newPassword: undefined,
       role: user?.role || undefined,
+      isTwoFactorEnabled: user?.isTwoFactorEnabled || undefined,
     },
   });
   const onSubmit = (values: z.infer<typeof SettingSchema>) => {
