@@ -13,21 +13,32 @@ import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation
 import { db } from "@/lib/db";
 
 export const login = async (values: z.infer<typeof LoginSchema>) => {
+  console.log("Login attempt with values:", { ...values, password: "REDACTED" });
+
   const validateFields = LoginSchema.safeParse(values);
 
   if (!validateFields.success) {
+    console.log("Validation failed:", validateFields.error);
     return { error: "Invalid Fields" };
   }
 
   const { email, password, code } = validateFields.data;
 
   const existingUser = await getUserByEmail(email);
+  console.log("Found user:", { 
+    id: existingUser?.id,
+    email: existingUser?.email,
+    emailVerified: existingUser?.emailVerified,
+    isTwoFactorEnabled: existingUser?.isTwoFactorEnabled
+  });
 
   if (!existingUser || !existingUser.email || !existingUser.password) {
-    return { error: "Invaild credentials!" };
+    console.log("Invalid credentials - user not found or missing email/password");
+    return { error: "Invalid credentials!" };
   }
 
   if (!existingUser.emailVerified) {
+    console.log("Email not verified, generating verification token");
     const verificationToken = await generateVerificationToken(
       existingUser.email
     );
@@ -41,15 +52,17 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
   }
 
   if (existingUser.isTwoFactorEnabled && existingUser.email) {
+    console.log("2FA is enabled for user");
     if (code) {
       const twoFactorToken = await getTwoFactorTokenByEmail(existingUser.email);
+      console.log("2FA token found:", !!twoFactorToken);
 
       if (!twoFactorToken) {
         return { error: "Invalid code!" };
       }
 
       if (twoFactorToken.token !== code) {
-        return { error: "Incalid code!" };
+        return { error: "Invalid code!" };
       }
 
       const hasExpired = new Date(twoFactorToken.expires) < new Date();
@@ -79,6 +92,7 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
       });
     } else {
       const twoFactorToken = await generateTwoFactorToken(existingUser.email);
+      console.log("Generated new 2FA token");
 
       await sendTwoFactorTokenEmail(twoFactorToken.email, twoFactorToken.token);
 
@@ -87,12 +101,21 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
   }
 
   try {
-    await signIn("credentials", {
+    console.log("Attempting to sign in with credentials");
+    const signInResult = await signIn("credentials", {
       email,
       password,
-      redirectTo: DEFAULT_LOGIN_REDIRECT,
+      redirect: false // Don't redirect automatically
     });
+    console.log("Sign in result:", signInResult);
+
+    if (signInResult?.error) {
+      return { error: "Invalid credentials!" };
+    }
+
+    return { success: "Logged in successfully!" };
   } catch (error) {
+    console.error("Sign in error:", error);
     if (error instanceof AuthError) {
       switch (error.type) {
         case "CredentialsSignin":

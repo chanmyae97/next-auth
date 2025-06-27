@@ -17,30 +17,51 @@ export default auth((req) => {
   const isPublicRoute = publicRoutes.includes(nextUrl.pathname);
   const isAuthRoute = authRoutes.includes(nextUrl.pathname);
 
+  console.log("Middleware Check:", {
+    path: nextUrl.pathname,
+    isLoggedIn,
+    isApiAuthRoute,
+    isPublicRoute,
+    isAuthRoute,
+    auth: req.auth,
+    cookies: req.cookies.getAll()
+  });
+
   if (isApiAuthRoute) {
-    return; // Changed from return null;
+    console.log("API Auth route - allowing");
+    return;
   }
 
   if (isAuthRoute) {
     if (isLoggedIn) {
+      console.log("Auth route - user logged in, redirecting to", DEFAULT_LOGIN_REDIRECT);
       return Response.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl));
     }
-    return; // Changed from return null;
+    console.log("Auth route - allowing unauthenticated access");
+    return;
   }
 
   if (!isLoggedIn && !isPublicRoute) {
-    return Response.redirect(new URL("/auth/login", nextUrl));
+    console.log("Protected route - redirecting to login");
+    const redirectUrl = new URL("/auth/login", nextUrl);
+    redirectUrl.searchParams.set("callbackUrl", nextUrl.pathname);
+    return Response.redirect(redirectUrl);
   }
 
-  return; // Changed from return null;
+  console.log("Route allowed");
+  return;
 });
 
 // Optionally, don't invoke Middleware on some paths
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
-    "/(api|trpc)(.*)",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api/auth (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!api/auth|_next/static|_next/image|favicon.ico).*)",
   ],
 };

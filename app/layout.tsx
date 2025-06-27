@@ -26,9 +26,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  console.log("Root Layout - Initial session:", session);
 
   return (
-    <SessionProvider session={session}>
+    <SessionProvider session={session} refetchInterval={0}>
       <html lang="en">
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}

@@ -8,9 +8,10 @@ import { getTwoFactorConfirmationByUserId } from "./data/two-factor-confirmation
 
 import { db } from "./lib/db";
 import { getAccountByUserId } from "./data/account";
+
 export const {
-  auth,
   handlers: { GET, POST },
+  auth,
   signIn,
   signOut,
   unstable_update,
@@ -29,33 +30,49 @@ export const {
   },
   callbacks: {
     async signIn({ user, account }) {
+      console.log("SignIn callback", { user, account });
+
       if (account?.provider !== "credentials") return true;
 
-      if (!user.id) return false;
-      const existingUser = await getUserById(user.id);
+      if (!user.id) {
+        console.log("No user ID present");
+        return false;
+      }
 
-      // Prevent sign in without email verification
-      if (!existingUser?.emailVerified) return false;
+      const existingUser = await getUserById(user.id);
+      console.log("Existing user:", existingUser);
+
+      if (!existingUser?.emailVerified) {
+        console.log("Email not verified");
+        return false;
+      }
 
       if (existingUser.isTwoFactorEnabled) {
         const twoFactorConfirmation = await getTwoFactorConfirmationByUserId(
           existingUser.id
         );
 
-        if (!twoFactorConfirmation) return false;
+        if (!twoFactorConfirmation) {
+          console.log("2FA required but no confirmation found");
+          return false;
+        }
 
-        // Delete two factor confirmation for next sign in
         await db.twoFactorConfirmation.delete({
           where: { id: twoFactorConfirmation.id },
         });
       }
+
       return true;
     },
 
     async session({ token, session }) {
-      // console.log({
-      //   sessionToken: token,
-      // });
+      console.log("Session callback - Initial", { token, session });
+
+      if (!token) {
+        console.log("No token present in session callback");
+        return session;
+      }
+
       if (token.sub && session.user) {
         session.user.id = token.sub;
       }
@@ -64,24 +81,31 @@ export const {
         session.user.role = token.role as UserRole;
       }
 
-      if (token.isTwoFactorEnabled && session.user) {
-        session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;
-      }
-
       if (session.user) {
         session.user.name = token.name ?? "";
         session.user.email = token.email ?? "";
         session.user.isOAuth = token.isOAuth as boolean;
+        session.user.isTwoFactorEnabled = token.isTwoFactorEnabled as boolean;
       }
+
+      console.log("Session callback - Final", { session });
       return session;
     },
 
     async jwt({ token }) {
-      if (!token.sub) return token;
+      console.log("JWT callback - Initial token:", token);
+
+      if (!token.sub) {
+        console.log("No sub in token");
+        return token;
+      }
 
       const existingUser = await getUserById(token.sub);
 
-      if (!existingUser) return token;
+      if (!existingUser) {
+        console.log("No existing user found for token");
+        return token;
+      }
 
       const existingAccount = await getAccountByUserId(existingUser.id);
 
@@ -91,6 +115,7 @@ export const {
       token.role = existingUser.role;
       token.isTwoFactorEnabled = existingUser.isTwoFactorEnabled;
 
+      console.log("JWT callback - Modified token:", token);
       return token;
     },
   },

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SettingSchema } from "@/schemas";
 
-import { useTransition, useState } from "react";
+import { useTransition, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 
 import { settings } from "@/actions/settings";
@@ -38,11 +38,57 @@ import { FormError } from "@/components/form-error";
 import { UserRole } from "@prisma/client";
 
 const SettingsPage = () => {
+  const { data: session, status, update } = useSession();
   const user = useCurrentUser();
   const [error, setError] = useState<string | undefined>();
   const [success, setSuccess] = useState<string | undefined>();
-  const { update } = useSession();
   const [isPending, startTransition] = useTransition();
+
+  console.log("Settings Page - Session:", { session, status });
+  console.log("Settings Page - User:", user);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      window.location.href = "/auth/login?callbackUrl=/settings";
+    }
+  }, [status]);
+
+  // Handle loading state
+  if (status === "loading") {
+    return (
+      <Card className="w-[600px]">
+        <CardHeader>
+          <div className="flex items-center justify-center gap-2 text-2xl font-semibold">
+            <FcSettings />
+            Loading...
+          </div>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  // Handle unauthenticated state
+  if (status === "unauthenticated") {
+    return (
+      <Card className="w-[600px]">
+        <CardHeader>
+          <div className="flex items-center justify-center gap-2 text-2xl font-semibold">
+            <FcSettings />
+            Not authenticated
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center">
+            <p>Please log in to access settings.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  console.log("Current session:", session);
+  console.log("Current user:", user);
+
   const form = useForm<z.infer<typeof SettingSchema>>({
     resolver: zodResolver(SettingSchema),
     defaultValues: {

@@ -22,16 +22,17 @@ import { Button } from "../ui/button";
 import { FormError } from "../form-error";
 import { FormSuccess } from "../form-success";
 import { login } from "@/actions/login";
+import { DEFAULT_LOGIN_REDIRECT } from "@/routes";
 
 export const LoginForm = () => {
   const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl");
   const urlError =
     searchParams.get("error") === "OAuthAccountNotLinked"
       ? "Email already in use with different provider"
       : "";
 
-  const [showTwoFactor, setShowTowFactor] = useState(false);
-
+  const [showTwoFactor, setShowTwoFactor] = useState(false);
   const [error, setError] = useState<string | undefined>("");
   const [success, setSuccess] = useState<string | undefined>("");
   const [isPending, startTransition] = useTransition();
@@ -50,6 +51,7 @@ export const LoginForm = () => {
     startTransition(() => {
       login(values)
         .then((data) => {
+          console.log("Login response:", data);
           if (data?.error) {
             form.reset();
             setError(data.error);
@@ -58,13 +60,19 @@ export const LoginForm = () => {
           if (data?.success) {
             form.reset();
             setSuccess(data.success);
+            const callbackUrl =
+              searchParams.get("callbackUrl") || DEFAULT_LOGIN_REDIRECT;
+            window.location.href = callbackUrl;
           }
 
           if (data?.twoFactor) {
-            setShowTowFactor(true);
+            setShowTwoFactor(true);
           }
         })
-        .catch(() => setError("Something went wrong"));
+        .catch((err) => {
+          console.error("Login error:", err);
+          setError("Something went wrong");
+        });
     });
   };
 
