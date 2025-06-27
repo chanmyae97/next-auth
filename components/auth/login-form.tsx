@@ -29,6 +29,7 @@ export const LoginForm = () => {
   const router = useRouter();
   const { update } = useSession();
   const searchParams = useSearchParams();
+  const callBackUrl = searchParams.get("callBackUrl");
   const urlError =
     searchParams.get("error") === "OAuthAccountNotLinked"
       ? "Email already in use with different provider"
@@ -71,7 +72,10 @@ export const LoginForm = () => {
             setError("Invalid credentials!");
           } else {
             await update();
-            router.push(DEFAULT_LOGIN_REDIRECT);
+            const redirectUrl = callBackUrl
+              ? decodeURIComponent(callBackUrl)
+              : DEFAULT_LOGIN_REDIRECT;
+            router.push(redirectUrl);
             router.refresh();
           }
         }
