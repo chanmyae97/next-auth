@@ -24,7 +24,7 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
   const existingUser = await getUserByEmail(email);
 
   if (!existingUser || !existingUser.email || !existingUser.password) {
-    return { error: "Invaild credentials!" };
+    return { error: "Invalid credentials!" };
   }
 
   if (!existingUser.emailVerified) {
@@ -49,7 +49,7 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
       }
 
       if (twoFactorToken.token !== code) {
-        return { error: "Incalid code!" };
+        return { error: "Invalid code!" };
       }
 
       const hasExpired = new Date(twoFactorToken.expires) < new Date();
@@ -87,11 +87,17 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
   }
 
   try {
-    await signIn("credentials", {
+    const signInResult = await signIn("credentials", {
       email,
       password,
-      redirectTo: DEFAULT_LOGIN_REDIRECT,
+      redirect: false,
     });
+
+    if (signInResult?.error) {
+      return { error: "Invalid credentials!" };
+    }
+
+    return { success: "Logged in successfully!" };
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {
