@@ -4,7 +4,8 @@ import * as z from "zod";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   Form,
@@ -22,16 +23,18 @@ import { Button } from "../ui/button";
 import { FormError } from "../form-error";
 import { FormSuccess } from "../form-success";
 import { login } from "@/actions/login";
+import { DEFAULT_LOGIN_REDIRECT } from "@/routes";
 
 export const LoginForm = () => {
+  const router = useRouter();
+  const { update } = useSession();
   const searchParams = useSearchParams();
   const urlError =
     searchParams.get("error") === "OAuthAccountNotLinked"
       ? "Email already in use with different provider"
       : "";
 
-  const [showTwoFactor, setShowTowFactor] = useState(false);
-
+  const [showTwoFactor, setShowTwoFactor] = useState(false);
   const [error, setError] = useState<string | undefined>("");
   const [success, setSuccess] = useState<string | undefined>("");
   const [isPending, startTransition] = useTransition();
@@ -44,34 +47,48 @@ export const LoginForm = () => {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof LoginSchema>) => {
+  const onSubmit = async (values: z.infer<typeof LoginSchema>) => {
     setError("");
     setSuccess("");
-    startTransition(() => {
-      login(values)
-        .then((data) => {
-          if (data?.error) {
-            form.reset();
-            setError(data.error);
-          }
 
-          if (data?.success) {
-            form.reset();
-            setSuccess(data.success);
-          }
+    startTransition(async () => {
+      try {
+        const data = await login(values);
 
-          if (data?.twoFactor) {
-            setShowTowFactor(true);
+        if (data?.error) {
+          form.reset();
+          setError(data.error);
+        }
+
+        if (data?.success) {
+          const signInResult = await signIn("credentials", {
+            email: values.email,
+            password: values.password,
+            redirect: false,
+          });
+
+          if (signInResult?.error) {
+            setError("Invalid credentials!");
+          } else {
+            await update();
+            router.push(DEFAULT_LOGIN_REDIRECT);
+            router.refresh();
           }
-        })
-        .catch(() => setError("Something went wrong"));
+        }
+
+        if (data?.twoFactor) {
+          setShowTwoFactor(true);
+        }
+      } catch (error) {
+        setError("Something went wrong");
+      }
     });
   };
 
   return (
     <CardWrapper
       headerLabel="Welcome Back"
-      backButtonLabel="Don't have and account?"
+      backButtonLabel="Don't have an account?"
       backButtonHref="/auth/register"
       showSocial
     >
