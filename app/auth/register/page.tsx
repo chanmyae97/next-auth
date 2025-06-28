@@ -1,7 +1,12 @@
+import { Suspense } from "react";
 import { RegisterForm } from "@/components/auth/register-form";
 
 const RegisterPage = () => {
-  return <RegisterForm />;
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
+  );
 };
 
 export default RegisterPage;
